@@ -1,0 +1,23 @@
+name: Update Friends
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  update:
+    if: startsWith(github.event.issue.title, '新增友链')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: |
+          npm install
+      - name: Update friends
+        run: |
+          node .github/workflows/update-friends.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
