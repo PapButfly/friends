@@ -12,41 +12,46 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.TOKEN }}
+          persist-credentials: false
           fetch-depth: 0
 
-      - name: Generate Friends List from Template
+      - name: Generate Friends List
         id: generate
         run: |
-          # Get all closed issues
-          ISSUES=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
+          # 获取所有已关闭且带“友链”标签的 Issue
+          ISSUES=$(curl -s \
+              -H "Authorization: token ${{ secrets.TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
 
-          # Extract JSON from each issue body
+          # 提取Issue正文中的JSON代码块，并过滤掉空值
           FRIENDS_JSON=$(echo "$ISSUES" | jq -r '
             map(
               .body | 
-              capture("```json(?<json_data>.*)```") | 
+              capture("```json(?<json_data>[\\s\\S]*)```") | 
               .json_data
             ) | .[]'
           )
 
-          # If there is no JSON data, create an empty file.
+          # 将每个JSON对象转换为一行，并创建一个新的数组
           if [ -z "$FRIENDS_JSON" ] || [ "$FRIENDS_JSON" = "null" ]; then
             echo "[]" > friends.json
           else
-            # Collect all JSON objects into a single array
-            echo "[" > friends.json
-            echo "$FRIENDS_JSON" | while read -r line; do
-              if [[ -n "$line" ]]; then
-                echo "$line" >> friends.json
-              fi
-            done
-            echo "]" >> friends.json
+            echo "$FRIENDS_JSON" | tr -d '\n' | sed 's/\}\s*\{/},{/g' | sed 's/^\s*\[//' | sed 's/\]\s*$/' > temp.json
+            echo "["$(cat temp.json)"]" > friends.json
+            rm temp.json
           fi
 
       - name: Commit and Push
         run: |
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
+          # 确保有文件要提交，否则直接退出
+          git status --porcelain
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit. Exiting."
+            exit 0
+          fi
+
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
           git add friends.json
           git commit -m "Update friends.json via GitHub Actions"
           git push
