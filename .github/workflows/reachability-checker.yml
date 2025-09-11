@@ -1,3 +1,4 @@
+# 用于检查友链链接的有效性
 name: Reachability Checker
 
 # Controls when the workflow will run
