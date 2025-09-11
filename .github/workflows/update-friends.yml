@@ -23,7 +23,7 @@ jobs:
               -H "Authorization: token ${{ secrets.TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
 
-          # 使用 sed 和 grep 提取 JSON 代码块
+          # 使用 grep 和 sed 提取并处理 JSON 代码块
           FRIENDS_JSON=$(echo "$ISSUES" | grep -oP '```json\n\K[^`]+' | tr -d '\n' | sed 's/\}\s*\{/},{/g')
 
           # 确保有JSON数据
