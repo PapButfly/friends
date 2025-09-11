@@ -1,5 +1,4 @@
 import os
-import requests
 import json
 import re
 from github import Github
@@ -17,6 +16,7 @@ def get_issues():
     """
     获取所有带有 '友链' 标签的已关闭 Issue。
     """
+    # 使用 labels=['友链'] 精确过滤
     issues = repo.get_issues(state='closed', labels=['友链'])
     return issues
 
@@ -24,10 +24,12 @@ def parse_issue_body(body):
     """
     从 Issue 正文中解析 JSON 数据。
     """
-    json_match = re.search(r'```json\s*(\{[\s\S]*?\})\s*```', body)
+    # 使用正则表达式精确匹配```json...```中的内容
+    json_match = re.search(r'```json\s*([\s\S]*?)\s*```', body)
     if json_match:
         json_data = json_match.group(1)
         try:
+            # 尝试解析JSON
             data = json.loads(json_data)
             return data
         except json.JSONDecodeError as e:
