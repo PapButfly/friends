@@ -14,32 +14,33 @@ jobs:
           token: ${{ secrets.TOKEN }}
           fetch-depth: 0
 
-      - name: Generate Friends List from JSON Template
+      - name: Generate Friends List from Template
         id: generate
         run: |
+          # Get all closed issues
           ISSUES=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
 
-          # Extract the JSON block and process it
-          FRIENDS_LIST=$(echo "$ISSUES" | jq -r '
+          # Extract JSON from each issue body
+          FRIENDS_JSON=$(echo "$ISSUES" | jq -r '
             map(
               .body | 
-              split("```json")[1] | 
-              split("```")[0] | 
-              fromjson | 
-              {name: .title, link: .url, avatar: .icon, descr: .description}
-            )
-          ')
+              capture("```json(?<json_data>.*)```") | 
+              .json_data
+            ) | .[]'
+          )
 
-          if [ -z "$FRIENDS_LIST" ] || [ "$FRIENDS_LIST" = "[]" ]; then
-            echo "No valid JSON data found. Creating an empty file."
+          # If there is no JSON data, create an empty file.
+          if [ -z "$FRIENDS_JSON" ] || [ "$FRIENDS_JSON" = "null" ]; then
             echo "[]" > friends.json
           else
-            echo "$FRIENDS_LIST" > friends.json
-          fi
-
-          if [ ! -f "friends.json" ]; then
-            echo "friends.json was not created. Exiting."
-            exit 1
+            # Collect all JSON objects into a single array
+            echo "[" > friends.json
+            echo "$FRIENDS_JSON" | while read -r line; do
+              if [[ -n "$line" ]]; then
+                echo "$line" >> friends.json
+              fi
+            done
+            echo "]" >> friends.json
           fi
 
       - name: Commit and Push
