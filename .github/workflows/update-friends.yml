@@ -23,27 +23,25 @@ jobs:
               -H "Authorization: token ${{ secrets.TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
 
-          # 提取Issue正文中的JSON代码块，并过滤掉空值
-          FRIENDS_JSON=$(echo "$ISSUES" | jq -r '
-            map(
-              .body | 
-              capture("```json(?<json_data>[\\s\\S]*)```") | 
-              .json_data
-            ) | .[]'
-          )
+          # 使用 sed 和 grep 提取 JSON 代码块
+          FRIENDS_JSON=$(echo "$ISSUES" | grep -oP '```json\n\K[^`]+' | tr -d '\n' | sed 's/\}\s*\{/},{/g')
 
-          # 将每个JSON对象转换为一行，并创建一个新的数组
+          # 确保有JSON数据
           if [ -z "$FRIENDS_JSON" ] || [ "$FRIENDS_JSON" = "null" ]; then
             echo "[]" > friends.json
           else
-            echo "$FRIENDS_JSON" | tr -d '\n' | sed 's/\}\s*\{/},{/g' | sed 's/^\s*\[//' | sed 's/\]\s*$/' > temp.json
-            echo "["$(cat temp.json)"]" > friends.json
-            rm temp.json
+            echo "["$FRIENDS_JSON"]" > friends.json
+          fi
+
+          # 检查文件是否创建成功
+          if [ ! -f "friends.json" ]; then
+            echo "friends.json was not created. Exiting."
+            exit 1
           fi
 
       - name: Commit and Push
         run: |
-          # 确保有文件要提交，否则直接退出
+          # 检查是否有文件需要提交
           git status --porcelain
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes to commit. Exiting."
