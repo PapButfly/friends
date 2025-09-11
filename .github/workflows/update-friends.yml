@@ -1,23 +1,59 @@
 name: Update Friends
 
 on:
-  issue_comment:
-    types: [created]
+  issues:
+    types: [closed]
 
 jobs:
   update:
-    if: startsWith(github.event.issue.title, '新增友链')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
         with:
-          node-version: '16'
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Install dependencies
+        run: npm install @actions/github @octokit/rest fs
+
+      - name: Update friends data
         run: |
-          npm install
-      - name: Update friends
-        run: |
-          node .github/workflows/update-friends.js
+          node -e '
+            const fs = require("fs");
+            const { Octokit } = require("@octokit/rest");
+            const github = require("@actions/github");
+
+            const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+
+            async function main() {
+              const { data: issues } = await octokit.rest.issues.listForRepo({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                state: "closed",
+                labels: ["友链"]
+              });
+
+              const friends = issues.map(issue => {
+                const [name, link, avatar, descr] = issue.body.split("\\n").map(line => line.split(": ")[1]);
+                return { name, link, avatar, descr, tag: "大佬" };
+              });
+
+              fs.writeFileSync("friends.json", JSON.stringify(friends, null, 2));
+
+              const { execSync } = require("child_process");
+              execSync("git config user.name github-actions");
+              execSync("git config user.email github-actions@github.com");
+              execSync("git add friends.json");
+              execSync("git commit -m \"Update friends.json\"");
+              execSync("git push");
+            }
+
+            main();
+          '
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
