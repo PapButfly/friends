@@ -8,52 +8,26 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - name: Install dependencies
-        run: npm install @octokit/rest @actions/github
-      
-      - name: Update friends data
+      - name: Generate Friends List
         run: |
-          node -e '
-            const fs = require("fs");
-            const { Octokit } = require("@octokit/rest");
-            const { context } = require("@actions/github");
-      
-            const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-      
-            async function main() {
-              const { data: issues } = await octokit.rest.issues.listForRepo({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: "closed",
-                labels: ["友链"]
-              });
-      
-              const friends = issues.map(issue => {
-                const [name, link, avatar, descr] = issue.body.split("\\n").map(line => line.split(": ")[1]);
-                return { name, link, avatar, descr, tag: "大佬" };
-              });
-      
-              fs.writeFileSync("friends.json", JSON.stringify(friends, null, 2));
-      
-              const { execSync } = require("child_process");
-              execSync("git config user.name github-actions");
-              execSync("git config user.email github-actions@github.com");
-              execSync("git add friends.json");
-              execSync("git commit -m \"Update friends.json\"");
-              execSync("git push");
-            }
-      
-            main();
-          '
+          # Get all closed issues with "友链" label
+          ISSUES=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%BE" | jq -r 'map({name: .title, link: .body | split("\n")[0] | split(": ")[1], avatar: .body | split("\n")[1] | split(": ")[1], descr: .body | split("\n")[2] | split(": ")[1], tag: "大佬"})')
+
+          # Create or update friends.json
+          echo "$ISSUES" > friends.json
+
+          # Check if the file was created
+          if [ ! -f "friends.json" ]; then
+            echo "friends.json was not created. Exiting."
+            exit 1
+          fi
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add friends.json
+          git commit -m "Update friends.json via GitHub Actions"
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
