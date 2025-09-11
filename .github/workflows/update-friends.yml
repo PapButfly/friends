@@ -15,33 +15,22 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Generate Friends List
-        id: generate
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
         run: |
-          # 获取所有已关闭且带“友链”标签的 Issue
-          ISSUES=$(curl -s \
-              -H "Authorization: token ${{ secrets.TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%A6")
+          pip install PyGithub requests
 
-          # 使用 grep 和 sed 提取并处理 JSON 代码块
-          FRIENDS_JSON=$(echo "$ISSUES" | grep -oP '```json\n\K[^`]+' | tr -d '\n' | sed 's/\}\s*\{/},{/g')
-
-          # 确保有JSON数据
-          if [ -z "$FRIENDS_JSON" ] || [ "$FRIENDS_JSON" = "null" ]; then
-            echo "[]" > friends.json
-          else
-            echo "["$FRIENDS_JSON"]" > friends.json
-          fi
-
-          # 检查文件是否创建成功
-          if [ ! -f "friends.json" ]; then
-            echo "friends.json was not created. Exiting."
-            exit 1
-          fi
+      - name: Generate Friends List
+        run: python .github/workflows/update_friends.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
       - name: Commit and Push
         run: |
-          # 检查是否有文件需要提交
           git status --porcelain
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes to commit. Exiting."
