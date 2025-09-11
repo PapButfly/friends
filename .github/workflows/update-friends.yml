@@ -8,15 +8,17 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.TOKEN }}
+
       - name: Generate Friends List
         run: |
-          # Get all closed issues with "友链" label
           ISSUES=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=%E5%8F%8B%E9%93%BE" | jq -r 'map({name: .title, link: .body | split("\n")[0] | split(": ")[1], avatar: .body | split("\n")[1] | split(": ")[1], descr: .body | split("\n")[2] | split(": ")[1], tag: "大佬"})')
 
-          # Create or update friends.json
           echo "$ISSUES" > friends.json
 
-          # Check if the file was created
           if [ ! -f "friends.json" ]; then
             echo "friends.json was not created. Exiting."
             exit 1
