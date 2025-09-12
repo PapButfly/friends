@@ -63,4 +63,4 @@ body:
     attributes:
       label: 友链仓库（可选）
       description: 如果您使用 issue 作为友链源，请附上 issue 仓库链接，博主将会前往您的仓库自行填写友链。
-      placeholder: "如: https://dl668.github.io/friends/"
+      placeholder: "如: https://github.com/DL668/friends/"
