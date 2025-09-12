@@ -31,6 +31,7 @@ jobs:
 
       - name: Commit and Push
         run: |
+          # 检查是否有文件需要提交
           git status --porcelain
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes to commit. Exiting."
@@ -41,6 +42,7 @@ jobs:
           git config user.email 'github-actions@github.com'
           git add friends.json
           git commit -m "Update friends.json via GitHub Actions"
-          git push
+          # 使用 GITHUB_TOKEN 进行认证
+          git push https://x-access-token:${{ secrets.TOKEN }}@github.com/${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
