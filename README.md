@@ -1,5 +1,6 @@
 
-> 本仓库fork于https://github.com/xaoxuu/friends，并以此基础上进行了一些修改
+> 本仓库fork于https://github.com/xaoxuu/friends
+> 并在此基础上进行了一些修改
 
 
 **申请前须知**
